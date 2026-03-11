@@ -2,101 +2,121 @@ name: Go Test Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
+  deploy:
+    name: Deploy to Yandex Cloud
+    runs-on: ubuntu-latest
+    outputs:
+      vm_ip: ${{ steps.deploy.outputs.vm_ip }}
+    env:
+      YC_TOKEN: ${{ secrets.YC_TOKEN }}
+      YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required secrets
+        run: |
+          if [ -z "$YC_TOKEN" ] || [ -z "$YC_FOLDER_ID" ]; then
+            echo "::error::Add YC_TOKEN and YC_FOLDER_ID to repository secrets."
+            exit 1
+          fi
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub 2>/dev/null || true
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6"
+          terraform_wrapper: false
+
+      - name: Deploy application
+        id: deploy
+        run: |
+          chmod +x scripts/run.sh
+          VM_IP=$(./scripts/run.sh)
+          echo "vm_ip=$VM_IP" >> $GITHUB_OUTPUT
+
   test:
     name: Run Tests
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: project-sem-1
-          POSTGRES_USER: validator
-          POSTGRES_PASSWORD: val1dat0r
-        ports:
-          - 5432:5432
-        # Добавляем volume для сохранения данных
-        volumes:
-          - postgres_data:/var/lib/postgresql/data
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+    needs: deploy
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.23'
-
-    - name: Make scripts executable
-      run: |
-        chmod +x scripts/prepare.sh
-        chmod +x scripts/run.sh
-        chmod +x scripts/tests.sh
-
-    - name: Prepare environment
-      run: ./scripts/prepare.sh
-
-    - name: Run application
-      run: ./scripts/run.sh
-      env:
-        POSTGRES_HOST: localhost
-        POSTGRES_PORT: 5432
-        POSTGRES_DB: project-sem-1
-        POSTGRES_USER: validator
-        POSTGRES_PASSWORD: val1dat0r
-
-    - name: Test Level 1
-      id: test-level-1
-      continue-on-error: true
-      run: ./scripts/tests.sh 1
-      env:
-        POSTGRES_HOST: localhost
-        POSTGRES_PORT: 5432
-        POSTGRES_DB: project-sem-1
-        POSTGRES_USER: validator
-        POSTGRES_PASSWORD: val1dat0r
-
-    - name: Test Level 2
-      id: test-level-2
-      continue-on-error: true
-      run: ./scripts/tests.sh 2
-      env:
-        POSTGRES_HOST: localhost
-        POSTGRES_PORT: 5432
-        POSTGRES_DB: project-sem-1
-        POSTGRES_USER: validator
-        POSTGRES_PASSWORD: val1dat0r
-
-    - name: Test Level 3
-      id: test-level-3
-      continue-on-error: true
-      run: ./scripts/tests.sh 3
-      env:
-        POSTGRES_HOST: localhost
-        POSTGRES_PORT: 5432
-        POSTGRES_DB: project-sem-1
-        POSTGRES_USER: validator
-        POSTGRES_PASSWORD: val1dat0r
-
-    - name: Check test results
-      if: always()
-      run: |
-        if [[ "${{ steps.test-level-1.outcome }}" == "success" ]] || \
-           [[ "${{ steps.test-level-2.outcome }}" == "success" ]] || \
-           [[ "${{ steps.test-level-3.outcome }}" == "success" ]]; then
-          echo "At least one test level passed successfully!"
-          exit 0
-        else
-          echo "All test levels failed!"
+      - name: Wait for application
+        run: |
+          API_URL="http://${{ needs.deploy.outputs.vm_ip }}:8080/api/v0/prices"
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null "$API_URL?start=2024-01-01&end=2024-12-31&min=1&max=999999"; then
+              echo "Application is ready"
+              exit 0
+            fi
+            echo "Waiting for application... ($i/30)"
+            sleep 5
+          done
+          echo "Application failed to start"
           exit 1
-        fi
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Make scripts executable
+        run: chmod +x scripts/tests.sh
+
+      - name: Test Level 1
+        id: test-level-1
+        continue-on-error: true
+        run: ./scripts/tests.sh 1
+        env:
+          API_HOST: "http://${{ needs.deploy.outputs.vm_ip }}:8080"
+          DB_HOST: ${{ needs.deploy.outputs.vm_ip }}
+          DB_PORT: "5432"
+          DB_NAME: "project-sem-1"
+          DB_USER: "validator"
+          DB_PASSWORD: "val1dat0r"
+
+      - name: Test Level 2
+        id: test-level-2
+        continue-on-error: true
+        run: ./scripts/tests.sh 2
+        env:
+          API_HOST: "http://${{ needs.deploy.outputs.vm_ip }}:8080"
+          DB_HOST: ${{ needs.deploy.outputs.vm_ip }}
+          DB_PORT: "5432"
+          DB_NAME: "project-sem-1"
+          DB_USER: "validator"
+          DB_PASSWORD: "val1dat0r"
+
+      - name: Test Level 3
+        id: test-level-3
+        continue-on-error: true
+        run: ./scripts/tests.sh 3
+        env:
+          API_HOST: "http://${{ needs.deploy.outputs.vm_ip }}:8080"
+          DB_HOST: ${{ needs.deploy.outputs.vm_ip }}
+          DB_PORT: "5432"
+          DB_NAME: "project-sem-1"
+          DB_USER: "validator"
+          DB_PASSWORD: "val1dat0r"
+
+      - name: Check test results
+        if: always()
+        run: |
+          if [[ "${{ steps.test-level-1.outcome }}" == "success" ]] || \
+             [[ "${{ steps.test-level-2.outcome }}" == "success" ]] || \
+             [[ "${{ steps.test-level-3.outcome }}" == "success" ]]; then
+            echo "At least one test level passed successfully!"
+            exit 0
+          else
+            echo "All test levels failed!"
+            exit 1
+          fi

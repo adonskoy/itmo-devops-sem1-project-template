@@ -6,13 +6,13 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Конфигурация
-API_HOST="http://localhost:8080"
-DB_HOST="localhost"
-DB_PORT="5432"
-DB_NAME="project-sem-1"
-DB_USER="validator"
-DB_PASSWORD="val1dat0r"
+# Конфигурация (переопределяется через переменные окружения)
+API_HOST="${API_HOST:-http://localhost:8080}"
+DB_HOST="${DB_HOST:-localhost}"
+DB_PORT="${DB_PORT:-5432}"
+DB_NAME="${DB_NAME:-project-sem-1}"
+DB_USER="${DB_USER:-validator}"
+DB_PASSWORD="${DB_PASSWORD:-val1dat0r}"
 
 # Временные файлы для тестирования
 TEST_ZIP="test_data.zip"

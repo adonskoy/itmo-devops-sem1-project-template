@@ -1,0 +1,58 @@
+terraform {
+  required_providers {
+    yandex = {
+      source  = "yandex-cloud/yandex"
+      version = "~> 0.100"
+    }
+  }
+}
+
+provider "yandex" {
+  token     = var.yc_token
+  cloud_id  = var.yc_cloud_id
+  folder_id = var.yc_folder_id
+  zone      = var.yc_zone
+}
+
+data "yandex_compute_image" "ubuntu" {
+  family = "ubuntu-2204-lts"
+}
+
+resource "yandex_compute_instance" "vm" {
+  name        = "project-sem-1"
+  platform_id = "standard-v3"
+  zone        = var.yc_zone
+
+  resources {
+    cores  = 2
+    memory = 2
+  }
+
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu.id
+      size     = 20
+    }
+  }
+
+  network_interface {
+    subnet_id = yandex_vpc_subnet.subnet.id
+    nat       = true
+  }
+
+  metadata = {
+    ssh-keys = "${var.ssh_user}:${file(var.ssh_public_key_path)}"
+  }
+}
+
+resource "yandex_vpc_network" "network" {
+  name = "project-sem-1-network"
+}
+
+resource "yandex_vpc_subnet" "subnet" {
+  name           = "project-sem-1-subnet"
+  network_id     = yandex_vpc_network.network.id
+  zone           = var.yc_zone
+  v4_cidr_blocks = ["192.168.10.0/24"]
+}
+
