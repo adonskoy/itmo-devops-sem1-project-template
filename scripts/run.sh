@@ -64,7 +64,7 @@ if [ -n "${YC_FOLDER_ID}" ]; then
     REMOTE_DIR="/home/${SSH_USER}/project-sem-1"
 
     if [ -z "${YC_TOKEN}" ] && [ -z "${YC_SERVICE_ACCOUNT_KEY_FILE}" ]; then
-        echo "Error: Set YC_TOKEN or YC_SERVICE_ACCOUNT_KEY_FILE for Terraform auth" >&2
+        echo "Error: Set YC_TOKEN or YC_SERVICE_ACCOUNT_KEY_FILE for Terraform auth"
         exit 1
     fi
 
@@ -117,7 +117,6 @@ REMOTEEOF
     rm -f "$TARBALL"
     echo ""
     echo "Deployment complete. Application available at http://${VM_IP}:8080"
-    echo "$VM_IP"
     exit 0
 fi
 

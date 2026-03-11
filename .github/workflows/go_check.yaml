@@ -54,11 +54,15 @@ jobs:
           terraform_wrapper: false
 
       - name: Deploy application
-        id: deploy
         run: |
           chmod +x scripts/run.sh
-          VM_IP=$(./scripts/run.sh)
-          echo "vm_ip=$VM_IP" >> $GITHUB_OUTPUT
+          ./scripts/run.sh
+
+      - name: Get VM IP
+        id: deploy
+        run: |
+          cd terraform
+          echo "vm_ip=$(terraform output -raw vm_ip)" >> $GITHUB_OUTPUT
 
   test:
     name: Run Tests
