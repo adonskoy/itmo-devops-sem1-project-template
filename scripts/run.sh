@@ -16,7 +16,7 @@ DB_PASSWORD="${DB_PASSWORD:-val1dat0r}"
 DB_NAME="${DB_NAME:-project-sem-1}"
 
 # GitHub Actions или другая CI: Postgres уже запущен как service (только если нет деплоя в облако)
-if { [ -n "${CI}" ] || [ -n "${GITHUB_ACTIONS}" ]; } && [ -z "${YC_TOKEN}" ] && [ -z "${YC_FOLDER_ID}" ]; then
+if { [ -n "${CI}" ] || [ -n "${GITHUB_ACTIONS}" ]; } && [ -z "${YC_FOLDER_ID}" ]; then
     echo "CI mode: starting app container (Postgres already running)..."
 
     docker rm -f project-sem-1-app 2>/dev/null || true
@@ -46,7 +46,8 @@ if { [ -n "${CI}" ] || [ -n "${GITHUB_ACTIONS}" ]; } && [ -z "${YC_TOKEN}" ] && 
 fi
 
 # Yandex Cloud: Terraform + деплой через SSH
-if [ -n "${YC_TOKEN}" ] || [ -n "${YC_FOLDER_ID}" ]; then
+# Аутентификация: YC_TOKEN или YC_SERVICE_ACCOUNT_KEY_FILE (путь к JSON-ключу)
+if [ -n "${YC_FOLDER_ID}" ]; then
     echo "Deploying to Yandex Cloud via Terraform..."
 
     if ! command -v terraform &>/dev/null; then
@@ -62,20 +63,13 @@ if [ -n "${YC_TOKEN}" ] || [ -n "${YC_FOLDER_ID}" ]; then
     SSH_USER="ubuntu"
     REMOTE_DIR="/home/${SSH_USER}/project-sem-1"
 
-    # Terraform variables
-    export TF_VAR_yc_token="${YC_TOKEN}"
+    if [ -z "${YC_TOKEN}" ] && [ -z "${YC_SERVICE_ACCOUNT_KEY_FILE}" ]; then
+        echo "Error: Set YC_TOKEN or YC_SERVICE_ACCOUNT_KEY_FILE for Terraform auth" >&2
+        exit 1
+    fi
+
     export TF_VAR_yc_folder_id="${YC_FOLDER_ID}"
     export TF_VAR_ssh_public_key_path="$HOME/.ssh/id_rsa.pub"
-
-    if [ -z "$TF_VAR_yc_folder_id" ]; then
-        echo "Error: YC_FOLDER_ID is required"
-        exit 1
-    fi
-
-    if [ -z "$TF_VAR_yc_token" ]; then
-        echo "Error: YC_TOKEN is required"
-        exit 1
-    fi
 
     cd "$TERRAFORM_DIR"
     terraform init -input=false

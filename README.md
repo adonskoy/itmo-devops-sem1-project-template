@@ -40,39 +40,38 @@ chmod +x scripts/run.sh
 **Режимы работы `run.sh`:**
 - **Локально (по умолчанию):** запуск через `docker compose up` — PostgreSQL на порту 5432, API на 8080
 - **CI (GITHUB_ACTIONS=true, без YC):** запуск только контейнера приложения (PostgreSQL уже поднят как сервис)
-- **Yandex Cloud (YC_FOLDER_ID + YC_TOKEN):** Terraform создаёт VM, развёртывание через SSH
+- **Yandex Cloud (YC_FOLDER_ID + YC_TOKEN или YC_SERVICE_ACCOUNT_KEY_FILE):** Terraform создаёт VM, развёртывание через SSH
 
 ### Деплой в Yandex Cloud
 
-**Вариант 1: IAM-токен из авторизованного ключа** (рекомендуется для CI)
+**Вариант 1: Авторизованный ключ** (рекомендуется для CI)
 
 ```bash
-# Получить и установить IAM-токен из JSON-ключа сервисного аккаунта
-eval $(./scripts/get-yc-iam-token.sh path/to/authorized_key.json --export)
+export YC_SERVICE_ACCOUNT_KEY_FILE="path/to/authorized_key.json"
 export YC_FOLDER_ID="<идентификатор каталога>"
 ./scripts/run.sh
 ```
 
-**Вариант 2: OAuth-токен вручную**
+**Вариант 2: OAuth- или IAM-токен**
 
 ```bash
-export YC_TOKEN="<OAuth-токен>"
+export YC_TOKEN="<токен>"
 export YC_FOLDER_ID="<идентификатор каталога>"
 ./scripts/run.sh
 ```
 
-Требуется: Terraform, SSH-ключ `~/.ssh/id_rsa` / `~/.ssh/id_rsa.pub`. VM создаётся через Terraform (`terraform/`), репозиторий копируется по SSH, `docker compose up --build` выполняется на сервере. Авторизованный ключ создаётся в консоли Yandex Cloud: IAM → Сервисные аккаунты → Создать ключ.
+Требуется: Terraform, SSH-ключ `~/.ssh/id_rsa` / `~/.ssh/id_rsa.pub`. Terraform-провайдер берёт учётные данные из `YC_TOKEN` или `YC_SERVICE_ACCOUNT_KEY_FILE`. Ключ создаётся в консоли Yandex Cloud: IAM → Сервисные аккаунты → Создать ключ.
 
 ### GitHub Actions
 
 Воркфлоу деплоит приложение в Yandex Cloud и запускает тесты на удалённом сервере. Добавьте в Secrets репозитория:
 
-- `YC_TOKEN` — IAM-токен или OAuth-токен (если не используется ключ)
-- `YC_SERVICE_ACCOUNT_KEY` — JSON-ключ сервисного аккаунта (альтернатива YC_TOKEN; IAM-токен получается автоматически через yc CLI)
+- `YC_TOKEN` — IAM- или OAuth-токен (если не используется ключ)
+- `YC_SERVICE_ACCOUNT_KEY` — JSON-ключ сервисного аккаунта (записывается в файл, Terraform использует `YC_SERVICE_ACCOUNT_KEY_FILE`)
 - `YC_FOLDER_ID` — идентификатор каталога
-- `SSH_PRIVATE_KEY` — приватный ключ для доступа к VM (публичный ключ передаётся в Terraform)
+- `SSH_PRIVATE_KEY` — приватный ключ для доступа к VM
 
-Нужен либо `YC_TOKEN`, либо `YC_SERVICE_ACCOUNT_KEY`; при наличии обоих используется ключ.
+Нужен либо `YC_TOKEN`, либо `YC_SERVICE_ACCOUNT_KEY`. При наличии обоих используется ключ.
 
 ## Параметры API
 

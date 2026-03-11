@@ -7,8 +7,9 @@ terraform {
   }
 }
 
+# Аутентификация: YC_TOKEN или YC_SERVICE_ACCOUNT_KEY_FILE (путь к JSON-ключу)
+# https://registry.terraform.io/providers/yandex-cloud/yandex/latest/docs#service_account_key_file
 provider "yandex" {
-  token     = var.yc_token
   cloud_id  = var.yc_cloud_id
   folder_id = var.yc_folder_id
   zone      = var.yc_zone
