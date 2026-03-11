@@ -8,11 +8,15 @@ terraform {
 
   backend "s3" {
     key                         = "project-sem-1/terraform.tfstate"
-    endpoint                    = "https://storage.yandexcloud.net"
+    endpoints = {
+      s3 = "https://storage.yandexcloud.net"
+    }
     region                      = "ru-central1"
     skip_credentials_validation = true
     skip_metadata_api_check     = true
     skip_region_validation      = true
+    skip_requesting_account_id  = true
+    skip_s3_checksum            = true
   }
 }
 
