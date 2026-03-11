@@ -2,7 +2,7 @@ terraform {
   required_providers {
     yandex = {
       source  = "yandex-cloud/yandex"
-      version = "~> 0.100"
+      version = "~> 0.191"
     }
   }
 }
@@ -15,7 +15,7 @@ provider "yandex" {
 }
 
 data "yandex_compute_image" "ubuntu" {
-  family = "ubuntu-2204-lts"
+  family = "ubuntu-2404-lts"
 }
 
 resource "yandex_compute_instance" "vm" {
