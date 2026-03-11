@@ -14,6 +14,9 @@ jobs:
       vm_ip: ${{ steps.deploy.outputs.vm_ip }}
     env:
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+      YC_S3_BUCKET: ${{ secrets.YC_S3_BUCKET }}
+      YC_ACCESS_KEY: ${{ secrets.YC_ACCESS_KEY }}
+      YC_SECRET_KEY: ${{ secrets.YC_SECRET_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -25,6 +28,10 @@ jobs:
           fi
           if [ -z "${{ secrets.YC_TOKEN }}" ] && [ -z "${{ secrets.YC_SERVICE_ACCOUNT_KEY }}" ]; then
             echo "::error::Add YC_TOKEN or YC_SERVICE_ACCOUNT_KEY to repository secrets."
+            exit 1
+          fi
+          if [ -z "${{ secrets.YC_S3_BUCKET }}" ] || [ -z "${{ secrets.YC_ACCESS_KEY }}" ] || [ -z "${{ secrets.YC_SECRET_KEY }}" ]; then
+            echo "::error::Add YC_S3_BUCKET, YC_ACCESS_KEY, YC_SECRET_KEY for Terraform state."
             exit 1
           fi
 

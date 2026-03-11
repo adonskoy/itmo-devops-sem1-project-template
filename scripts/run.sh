@@ -68,11 +68,23 @@ if [ -n "${YC_FOLDER_ID}" ]; then
         exit 1
     fi
 
+    if [ -z "${YC_S3_BUCKET}" ] || [ -z "${YC_ACCESS_KEY}" ] || [ -z "${YC_SECRET_KEY}" ]; then
+        echo "Error: Set YC_S3_BUCKET, YC_ACCESS_KEY, YC_SECRET_KEY for Terraform state"
+        exit 1
+    fi
+
     export TF_VAR_yc_folder_id="${YC_FOLDER_ID}"
     export TF_VAR_ssh_public_key_path="$HOME/.ssh/id_rsa.pub"
 
     cd "$TERRAFORM_DIR"
-    terraform init -input=false
+    cat > backend.config << EOF
+bucket     = "${YC_S3_BUCKET}"
+access_key = "${YC_ACCESS_KEY}"
+secret_key = "${YC_SECRET_KEY}"
+EOF
+    terraform init -input=false -backend-config=backend.config
+    rm -f backend.config
+
     terraform apply -auto-approve -input=false
 
     VM_IP=$(terraform output -raw vm_ip)

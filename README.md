@@ -49,6 +49,9 @@ chmod +x scripts/run.sh
 ```bash
 export YC_SERVICE_ACCOUNT_KEY_FILE="path/to/authorized_key.json"
 export YC_FOLDER_ID="<идентификатор каталога>"
+export YC_S3_BUCKET="<имя-bucket>"
+export YC_ACCESS_KEY="<access-key>"
+export YC_SECRET_KEY="<secret-key>"
 ./scripts/run.sh
 ```
 
@@ -57,21 +60,25 @@ export YC_FOLDER_ID="<идентификатор каталога>"
 ```bash
 export YC_TOKEN="<токен>"
 export YC_FOLDER_ID="<идентификатор каталога>"
+export YC_S3_BUCKET="<имя-bucket>"
+export YC_ACCESS_KEY="<access-key>"
+export YC_SECRET_KEY="<secret-key>"
 ./scripts/run.sh
 ```
 
-Требуется: Terraform, SSH-ключ `~/.ssh/id_rsa` / `~/.ssh/id_rsa.pub`. Terraform-провайдер берёт учётные данные из `YC_TOKEN` или `YC_SERVICE_ACCOUNT_KEY_FILE`. Ключ создаётся в консоли Yandex Cloud: IAM → Сервисные аккаунты → Создать ключ.
+Требуется: Terraform, SSH-ключ `~/.ssh/id_rsa` / `~/.ssh/id_rsa.pub`. Terraform state хранится в Yandex Object Storage (S3-совместимый). Создайте bucket в Object Storage и статические ключи для сервисного аккаунта с ролью `storage.editor` до первого запуска.
 
 ### GitHub Actions
 
-Воркфлоу деплоит приложение в Yandex Cloud и запускает тесты на удалённом сервере. Добавьте в Secrets репозитория:
+**Go Test Pipeline** — деплоит приложение в Yandex Cloud и запускает тесты. Добавьте в Secrets:
 
-- `YC_TOKEN` — IAM- или OAuth-токен (если не используется ключ)
-- `YC_SERVICE_ACCOUNT_KEY` — JSON-ключ сервисного аккаунта (записывается в файл, Terraform использует `YC_SERVICE_ACCOUNT_KEY_FILE`)
+- `YC_TOKEN` или `YC_SERVICE_ACCOUNT_KEY` — аутентификация в Yandex Cloud
 - `YC_FOLDER_ID` — идентификатор каталога
+- `YC_S3_BUCKET` — имя bucket для Terraform state (Object Storage)
+- `YC_ACCESS_KEY`, `YC_SECRET_KEY` — статические ключи доступа к Object Storage
 - `SSH_PRIVATE_KEY` — приватный ключ для доступа к VM
 
-Нужен либо `YC_TOKEN`, либо `YC_SERVICE_ACCOUNT_KEY`. При наличии обоих используется ключ.
+**Terraform Destroy** — ручной воркфлоу (Actions → Terraform Destroy → Run workflow). Уничтожает инфраструктуру в Yandex Cloud. Требует те же Secrets.
 
 ## Параметры API
 
