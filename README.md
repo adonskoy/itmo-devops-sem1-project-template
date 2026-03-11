@@ -44,21 +44,35 @@ chmod +x scripts/run.sh
 
 ### Деплой в Yandex Cloud
 
+**Вариант 1: IAM-токен из авторизованного ключа** (рекомендуется для CI)
+
+```bash
+# Получить и установить IAM-токен из JSON-ключа сервисного аккаунта
+eval $(./scripts/get-yc-iam-token.sh path/to/authorized_key.json --export)
+export YC_FOLDER_ID="<идентификатор каталога>"
+./scripts/run.sh
+```
+
+**Вариант 2: OAuth-токен вручную**
+
 ```bash
 export YC_TOKEN="<OAuth-токен>"
 export YC_FOLDER_ID="<идентификатор каталога>"
 ./scripts/run.sh
 ```
 
-Требуется: Terraform, SSH-ключ `~/.ssh/id_rsa` / `~/.ssh/id_rsa.pub`. VM создаётся через Terraform (`terraform/`), репозиторий копируется по SSH, `docker compose up --build` выполняется на сервере.
+Требуется: Terraform, SSH-ключ `~/.ssh/id_rsa` / `~/.ssh/id_rsa.pub`. VM создаётся через Terraform (`terraform/`), репозиторий копируется по SSH, `docker compose up --build` выполняется на сервере. Авторизованный ключ создаётся в консоли Yandex Cloud: IAM → Сервисные аккаунты → Создать ключ.
 
 ### GitHub Actions
 
 Воркфлоу деплоит приложение в Yandex Cloud и запускает тесты на удалённом сервере. Добавьте в Secrets репозитория:
 
-- `YC_TOKEN` — OAuth-токен Yandex Cloud
+- `YC_TOKEN` — IAM-токен или OAuth-токен (если не используется ключ)
+- `YC_SERVICE_ACCOUNT_KEY` — JSON-ключ сервисного аккаунта (альтернатива YC_TOKEN; IAM-токен получается автоматически через yc CLI)
 - `YC_FOLDER_ID` — идентификатор каталога
 - `SSH_PRIVATE_KEY` — приватный ключ для доступа к VM (публичный ключ передаётся в Terraform)
+
+Нужен либо `YC_TOKEN`, либо `YC_SERVICE_ACCOUNT_KEY`; при наличии обоих используется ключ.
 
 ## Параметры API
 

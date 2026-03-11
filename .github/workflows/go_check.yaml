@@ -13,17 +13,36 @@ jobs:
     outputs:
       vm_ip: ${{ steps.deploy.outputs.vm_ip }}
     env:
-      YC_TOKEN: ${{ secrets.YC_TOKEN }}
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Check required secrets
         run: |
-          if [ -z "$YC_TOKEN" ] || [ -z "$YC_FOLDER_ID" ]; then
-            echo "::error::Add YC_TOKEN and YC_FOLDER_ID to repository secrets."
+          if [ -z "${{ secrets.YC_FOLDER_ID }}" ]; then
+            echo "::error::Add YC_FOLDER_ID to repository secrets."
             exit 1
           fi
+          if [ -z "${{ secrets.YC_TOKEN }}" ] && [ -z "${{ secrets.YC_SERVICE_ACCOUNT_KEY }}" ]; then
+            echo "::error::Add YC_TOKEN or YC_SERVICE_ACCOUNT_KEY to repository secrets."
+            exit 1
+          fi
+
+      - name: Get IAM token from service account key
+        if: secrets.YC_SERVICE_ACCOUNT_KEY != ''
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -n
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+          echo "${{ secrets.YC_SERVICE_ACCOUNT_KEY }}" > sa-key.json
+          chmod +x scripts/get-yc-iam-token.sh
+          export PATH="$HOME/yandex-cloud/bin:$PATH"
+          eval $(./scripts/get-yc-iam-token.sh sa-key.json --export)
+          echo "YC_TOKEN=$YC_TOKEN" >> $GITHUB_ENV
+          rm -f sa-key.json
+
+      - name: Set YC_TOKEN from secret
+        if: secrets.YC_SERVICE_ACCOUNT_KEY == '' && secrets.YC_TOKEN != ''
+        run: echo "YC_TOKEN=${{ secrets.YC_TOKEN }}" >> $GITHUB_ENV
 
       - name: Setup SSH key
         run: |
