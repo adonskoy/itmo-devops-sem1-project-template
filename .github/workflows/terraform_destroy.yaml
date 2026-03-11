@@ -1,0 +1,61 @@
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  destroy:
+    name: Destroy Yandex Cloud infrastructure
+    runs-on: ubuntu-latest
+    env:
+      YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+      YC_S3_BUCKET: ${{ secrets.YC_S3_BUCKET }}
+      YC_ACCESS_KEY: ${{ secrets.YC_ACCESS_KEY }}
+      YC_SECRET_KEY: ${{ secrets.YC_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.YC_FOLDER_ID }}" ]; then
+            echo "::error::Add YC_FOLDER_ID to repository secrets."
+            exit 1
+          fi
+          if [ -z "${{ secrets.YC_TOKEN }}" ] && [ -z "${{ secrets.YC_SERVICE_ACCOUNT_KEY }}" ]; then
+            echo "::error::Add YC_TOKEN or YC_SERVICE_ACCOUNT_KEY to repository secrets."
+            exit 1
+          fi
+          if [ -z "${{ secrets.YC_S3_BUCKET }}" ] || [ -z "${{ secrets.YC_ACCESS_KEY }}" ] || [ -z "${{ secrets.YC_SECRET_KEY }}" ]; then
+            echo "::error::Add YC_S3_BUCKET, YC_ACCESS_KEY, YC_SECRET_KEY for Terraform state."
+            exit 1
+          fi
+
+      - name: Setup YC auth
+        env:
+          YC_TOKEN_SECRET: ${{ secrets.YC_TOKEN }}
+          YC_SA_KEY: ${{ secrets.YC_SERVICE_ACCOUNT_KEY }}
+        run: |
+          if [ -n "$YC_SA_KEY" ]; then
+            echo "$YC_SA_KEY" > "$RUNNER_TEMP/sa-key.json"
+            echo "YC_SERVICE_ACCOUNT_KEY_FILE=$RUNNER_TEMP/sa-key.json" >> $GITHUB_ENV
+          elif [ -n "$YC_TOKEN_SECRET" ]; then
+            echo "YC_TOKEN=$YC_TOKEN_SECRET" >> $GITHUB_ENV
+          fi
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6"
+          terraform_wrapper: false
+
+      - name: Terraform Destroy
+        run: |
+          cd terraform
+          {
+            echo 'bucket     = "'"$YC_S3_BUCKET"'"'
+            echo 'access_key = "'"$YC_ACCESS_KEY"'"'
+            echo 'secret_key = "'"$YC_SECRET_KEY"'"'
+          } > backend.config
+          terraform init -input=false -backend-config=backend.config
+          rm -f backend.config
+          terraform destroy -auto-approve -input=false
