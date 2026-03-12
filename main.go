@@ -328,8 +328,9 @@ func getPricesHandler(db *sql.DB) http.HandlerFunc {
 		}
 		if minStr != "" {
 			minPrice, err := strconv.Atoi(minStr)
-			if err != nil || minPrice < 0 {
-				http.Error(w, `{"error":"min must be non-negative integer"}`, http.StatusBadRequest)
+			// Требование к входным данным: Формат: натуральное число (>0).
+			if err != nil || minPrice <= 0 {
+				http.Error(w, `{"error":"min must be positive integer"}`, http.StatusBadRequest)
 				return
 			}
 			conditions = append(conditions, fmt.Sprintf("price >= $%d", argNum))
@@ -338,8 +339,9 @@ func getPricesHandler(db *sql.DB) http.HandlerFunc {
 		}
 		if maxStr != "" {
 			maxPrice, err := strconv.Atoi(maxStr)
-			if err != nil || maxPrice < 0 {
-				http.Error(w, `{"error":"max must be non-negative integer"}`, http.StatusBadRequest)
+			// Требование к входным данным: Формат: натуральное число (>0).
+			if err != nil || maxPrice <= 0 {
+				http.Error(w, `{"error":"max must be positive integer"}`, http.StatusBadRequest)
 				return
 			}
 			conditions = append(conditions, fmt.Sprintf("price <= $%d", argNum))
