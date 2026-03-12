@@ -347,7 +347,7 @@ func getPricesHandler(db *sql.DB) http.HandlerFunc {
 			argNum++
 		}
 
-		query := `SELECT id, create_date, name, category, price FROM prices`
+		query := `SELECT id, create_date, name, category, price::float8 FROM prices`
 		if len(conditions) > 0 {
 			query += " WHERE " + strings.Join(conditions, " AND ")
 		}
@@ -363,15 +363,16 @@ func getPricesHandler(db *sql.DB) http.HandlerFunc {
 		var buf bytes.Buffer
 		buf.WriteString("id,create_date,name,category,price\n")
 		for rows.Next() {
-			var id, price int
+			var id int
 			var createDate string
 			var name, category string
+			var price float64
 			if err := rows.Scan(&id, &createDate, &name, &category, &price); err != nil {
 				log.Printf("Scan error: %v", err)
 				http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusInternalServerError)
 				return
 			}
-			buf.WriteString(fmt.Sprintf("%d,%s,%s,%s,%d\n", id, createDate, name, category, price))
+			buf.WriteString(fmt.Sprintf("%d,%s,%s,%s,%g\n", id, createDate, name, category, price))
 		}
 		if err := rows.Err(); err != nil {
 			log.Printf("rows.Err: %v", err)
